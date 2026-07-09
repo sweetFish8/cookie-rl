@@ -19,8 +19,6 @@ from cookie_rl.gym_env import (
     A_BUILDING0,
     A_LUMP,
     A_NOOP,
-    A_TOGGLE_CLICK,
-    A_TOGGLE_POP,
     A_UPGRADE0,
     N_UPGRADE_SLOTS,
 )
@@ -40,10 +38,7 @@ def greedy_policy(raw_obs: dict, mask: np.ndarray, ascend_gain_factor: float = 1
                   ascend_min_chips: float = 200.0) -> int:
     o = raw_obs
 
-    if o["clicksPerSec"] == 0:
-        return A_TOGGLE_CLICK
-    if not o["autoPop"]:
-        return A_TOGGLE_POP
+    # autoclick + golden-cookie popping are automatic (harness); nothing to toggle
     if mask[A_LUMP]:
         return A_LUMP
 

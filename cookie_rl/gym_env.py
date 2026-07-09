@@ -10,14 +10,16 @@ MDP design:
 - Invalid actions are masked (MaskablePPO / ActionMasker compatible via
   `action_masks()`).
 
-Action space (Discrete(33)):
-  0        noop (just let time pass)
+Autoclick (10/s) and golden-cookie auto-pop are always ON (handled in the
+harness), because they are always optimal and making them agent-toggles created a
+start-of-game exploration barrier that collapsed the policy to always-noop.
+
+Action space (Discrete(31)):
+  0        noop (just let time pass / save up)
   1..20    buy 1 of building id 0..19
   21..28   buy upgrade in store slot 0..7 (price-sorted)
-  29       toggle big-cookie autoclick (10 clicks/s while on)
-  30       toggle golden-cookie auto-pop
-  31       ascend (skip animation, greedy cheapest-first heavenly buys, reincarnate)
-  32       harvest ripe sugar lump
+  29       ascend (skip animation, greedy cheapest-first heavenly buys, reincarnate)
+  30       harvest ripe sugar lump
 """
 
 from __future__ import annotations
@@ -32,15 +34,13 @@ from cookie_rl.browser_env import CookieBrowser
 
 N_BUILDINGS = 20
 N_UPGRADE_SLOTS = 8
-N_ACTIONS = 1 + N_BUILDINGS + N_UPGRADE_SLOTS + 4  # 33
+N_ACTIONS = 1 + N_BUILDINGS + N_UPGRADE_SLOTS + 2  # 31
 
 A_NOOP = 0
 A_BUILDING0 = 1
-A_UPGRADE0 = 1 + N_BUILDINGS
-A_TOGGLE_CLICK = A_UPGRADE0 + N_UPGRADE_SLOTS  # 29
-A_TOGGLE_POP = A_TOGGLE_CLICK + 1              # 30
-A_ASCEND = A_TOGGLE_POP + 1                    # 31
-A_LUMP = A_ASCEND + 1                          # 32
+A_UPGRADE0 = 1 + N_BUILDINGS      # 21
+A_ASCEND = A_UPGRADE0 + N_UPGRADE_SLOTS  # 29
+A_LUMP = A_ASCEND + 1             # 30
 
 OBS_SCALARS = 22
 OBS_DIM = OBS_SCALARS + N_BUILDINGS * 3 + N_UPGRADE_SLOTS * 2  # 98
@@ -154,8 +154,6 @@ class CookieClickerEnv(gym.Env):
             m[A_BUILDING0 + b["id"]] = (not b["locked"]) and b["price"] <= bank
         for k in range(min(N_UPGRADE_SLOTS, len(o["upgrades"]))):
             m[A_UPGRADE0 + k] = o["upgrades"][k]["price"] <= bank
-        m[A_TOGGLE_CLICK] = True
-        m[A_TOGGLE_POP] = True
         m[A_ASCEND] = (o["prestigePotential"] - o["prestige"]) >= 1.0 and not o["onAscend"]
         m[A_LUMP] = bool(o["canLumps"]) and 0 <= o["lumpRipeAgeMs"] <= o["lumpAgeMs"]
         return m
@@ -167,13 +165,8 @@ class CookieClickerEnv(gym.Env):
             return
         if A_BUILDING0 <= action < A_UPGRADE0:
             b.buy_building(action - A_BUILDING0, 1)
-        elif A_UPGRADE0 <= action < A_TOGGLE_CLICK:
+        elif A_UPGRADE0 <= action < A_ASCEND:
             b.buy_upgrade_slot(action - A_UPGRADE0)
-        elif action == A_TOGGLE_CLICK:
-            on = self.raw_obs["clicksPerSec"] > 0
-            b.set_state(clicks_per_sec=0.0 if on else CLICKS_PER_SEC)
-        elif action == A_TOGGLE_POP:
-            b.set_state(auto_pop=not bool(self.raw_obs["autoPop"]))
         elif action == A_ASCEND:
             b.ascend()
         elif action == A_LUMP:

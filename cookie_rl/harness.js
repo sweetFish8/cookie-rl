@@ -45,10 +45,15 @@
 
 	const G = () => window.Game;
 
+	// Autoclick and golden-cookie popping are always optimal in Cookie Clicker,
+	// so they are ON by default rather than agent-controlled toggles. This removes
+	// the start-of-game exploration barrier (0 cookies + 0 CpS => the agent must
+	// otherwise discover "toggle autoclick" before any reward exists), which was
+	// collapsing the policy to always-noop.
 	const state = {
-		clicksPerSec: 0,   // big-cookie autoclick rate during step()
-		autoPop: false,    // pop golden (non-wrath) shimmers during step()
-		popWrath: false,   // also pop wrath cookies
+		clicksPerSec: 10, // big-cookie autoclick rate during step()
+		autoPop: true,    // pop golden (non-wrath) shimmers during step()
+		popWrath: false,  // also pop wrath cookies
 		initDone: false,
 	};
 
@@ -115,8 +120,8 @@
 			if (Game.OnAscend) Game.Reincarnate(1);
 			Game.HardReset(2);
 			if (seed !== undefined) rngState = (seed >>> 0) || 1;
-			state.clicksPerSec = 0;
-			state.autoPop = false;
+			state.clicksPerSec = 10;
+			state.autoPop = true;
 			state.popWrath = false;
 			Game.Notify = function () {};
 			frame(); // settle one frame so CpS/store are recalculated

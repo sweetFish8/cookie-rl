@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import torch
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -45,6 +46,9 @@ def main() -> None:
     ap.add_argument("--run-name", type=str, default="ppo")
     ap.add_argument("--device", type=str, default="cpu")
     args = ap.parse_args()
+
+    # leave CPU cores for the browser processes (each env = chromium + node + python)
+    torch.set_num_threads(2)
 
     Path("checkpoints").mkdir(exist_ok=True)
 
