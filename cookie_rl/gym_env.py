@@ -64,10 +64,18 @@ class CookieClickerEnv(gym.Env):
         seed: int = 0,
         browser_reset_every: int = 100,
         headless: bool = True,
+        shaping_coef: float = 0.5,
+        shaping_gamma: float = 0.999,
     ) -> None:
         super().__init__()
         self.horizon_steps = int(round(horizon_days * 86_400 / step_seconds))
         self.step_frames = int(round(step_seconds * GAME_FPS))
+        # potential-based shaping (Ng et al. 1999): F = γΦ(s') − Φ(s), Φ = log10(1+CpS).
+        # Rewards CpS increases immediately, so buying beats noop from step 1 —
+        # without this, undirected buying at short horizons scores below the
+        # autoclick income floor and PPO learns "buying is bad" -> collapses to noop.
+        self.shaping_coef = shaping_coef
+        self.shaping_gamma = shaping_gamma
         self._base_seed = seed
         self._episode_count = 0
         self._browser_reset_every = browser_reset_every
@@ -80,6 +88,7 @@ class CookieClickerEnv(gym.Env):
         self.raw_obs: dict = {}
         self._steps = 0
         self._last_log_baked = 0.0
+        self._last_phi = 0.0
 
     # ---- helpers --------------------------------------------------------------
 
@@ -183,6 +192,7 @@ class CookieClickerEnv(gym.Env):
         self.raw_obs = self._browser.reset_game(ep_seed)
         self._steps = 0
         self._last_log_baked = float(np.log10(1.0 + self.raw_obs["totalBaked"]))
+        self._last_phi = float(np.log10(1.0 + self.raw_obs["cookiesPs"]))
         return self._vectorize(self.raw_obs), {}
 
     def step(self, action: int):
@@ -192,8 +202,13 @@ class CookieClickerEnv(gym.Env):
         self._steps += 1
 
         log_baked = float(np.log10(1.0 + self.raw_obs["totalBaked"]))
-        reward = log_baked - self._last_log_baked
+        base_reward = log_baked - self._last_log_baked
         self._last_log_baked = log_baked
+
+        phi = float(np.log10(1.0 + self.raw_obs["cookiesPs"]))
+        shaping = self.shaping_coef * (self.shaping_gamma * phi - self._last_phi)
+        self._last_phi = phi
+        reward = base_reward + shaping
 
         truncated = self._steps >= self.horizon_steps
         info: dict[str, Any] = {
@@ -201,6 +216,7 @@ class CookieClickerEnv(gym.Env):
             "cps": self.raw_obs["cookiesPs"],
             "ascensions": self.raw_obs["ascensions"],
             "log10_baked": log_baked,
+            "base_reward": base_reward,
         }
         return self._vectorize(self.raw_obs), reward, False, truncated, info
 

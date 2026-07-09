@@ -69,7 +69,7 @@ def main() -> None:
             batch_size=1024,
             gamma=0.999,
             gae_lambda=0.98,
-            ent_coef=0.01,
+            ent_coef=0.02,
             learning_rate=3e-4,
             policy_kwargs=dict(net_arch=[256, 256]),
             tensorboard_log="runs",
