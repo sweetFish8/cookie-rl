@@ -1,0 +1,10 @@
+# game code is proprietary (copyright Orteil) — never commit it
+vendor/
+
+.venv/
+__pycache__/
+*.pyc
+runs/
+checkpoints/
+results/
+.DS_Store
