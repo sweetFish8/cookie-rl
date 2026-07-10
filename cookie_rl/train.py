@@ -43,6 +43,8 @@ def main() -> None:
     ap.add_argument("--step-seconds", type=float, default=30.0)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--load", type=str, default=None, help="checkpoint .zip to resume from")
+    ap.add_argument("--ent-coef", type=float, default=0.02, help="entropy bonus (lower => sharper argmax)")
+    ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--run-name", type=str, default="ppo")
     ap.add_argument("--device", type=str, default="cpu")
     args = ap.parse_args()
@@ -60,7 +62,9 @@ def main() -> None:
 
     if args.load:
         model = MaskablePPO.load(args.load, env=vec, device=args.device, tensorboard_log="runs")
-        print(f"resumed from {args.load}")
+        model.ent_coef = args.ent_coef  # allow sharpening the argmax when fine-tuning
+        model.learning_rate = args.lr
+        print(f"resumed from {args.load} (ent_coef={args.ent_coef}, lr={args.lr})")
     else:
         model = MaskablePPO(
             "MlpPolicy",
@@ -69,8 +73,8 @@ def main() -> None:
             batch_size=1024,
             gamma=0.999,
             gae_lambda=0.98,
-            ent_coef=0.02,
-            learning_rate=3e-4,
+            ent_coef=args.ent_coef,
+            learning_rate=args.lr,
             policy_kwargs=dict(net_arch=[256, 256]),
             tensorboard_log="runs",
             seed=args.seed,
