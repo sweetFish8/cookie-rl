@@ -49,27 +49,27 @@ def greedy_policy(raw_obs: dict, mask: np.ndarray, ascend_gain_factor: float = 1
     bank = o["cookies"]
     cps = o["cookiesPs"]
 
-    # cheapest affordable non-blacklisted upgrade
+    # cheapest non-blacklisted upgrade that the mask allows (== affordable)
     best_upg, best_upg_price = -1, float("inf")
     for k, u in enumerate(o["upgrades"][:N_UPGRADE_SLOTS]):
-        if u["name"] in UPGRADE_BLACKLIST:
+        if u["name"] in UPGRADE_BLACKLIST or not mask[A_UPGRADE0 + k]:
             continue
-        if u["price"] <= bank and u["price"] < best_upg_price:
+        if u["price"] < best_upg_price:
             best_upg, best_upg_price = k, u["price"]
     if best_upg >= 0:
         return A_UPGRADE0 + best_upg
 
-    # payback period over unlocked buildings (waiting for a better one is allowed)
-    best_pp, best_id, best_affordable = float("inf"), -1, False
+    # lowest payback period over all buildings. `locked` is ignored: Object.buy()
+    # only checks affordability and the headless store never flips locked to 0.
+    # Buy the argmin if affordable; else noop to save up for it.
+    best_pp, best_id, best_price = float("inf"), -1, 0.0
     for b in o["buildings"]:
-        if b["locked"] and b["amount"] == 0 and b["price"] > bank * 10:
-            continue
         dcps = max(b["unitCps"], 1e-12)
         wait = max(b["price"] - bank, 0.0) / cps if cps > 0 else (0.0 if b["price"] <= bank else float("inf"))
         pp = wait + b["price"] / dcps
         if pp < best_pp:
-            best_pp, best_id, best_affordable = pp, b["id"], b["price"] <= bank
-    if best_id >= 0 and best_affordable:
+            best_pp, best_id, best_price = pp, b["id"], b["price"]
+    if best_id >= 0 and best_price <= bank and mask[A_BUILDING0 + best_id]:
         return A_BUILDING0 + best_id
     return A_NOOP  # saving up for the argmin building
 

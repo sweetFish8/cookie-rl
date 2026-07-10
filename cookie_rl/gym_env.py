@@ -159,8 +159,13 @@ class CookieClickerEnv(gym.Env):
         m = np.zeros(N_ACTIONS, dtype=bool)
         m[A_NOOP] = True
         bank = o["cookies"]
+        # NOTE: mask on affordability ONLY, not `locked`. Object.buy() (main.js
+        # ~8136) gates purchases solely on Game.cookies>=price; `locked` is a
+        # store-display flag whose unlock logic lives in the Draw/refresh path we
+        # skip headless, so it stays 1 forever. Masking on it would forbid every
+        # building purchase and force the policy into all-noop.
         for b in o["buildings"][:N_BUILDINGS]:
-            m[A_BUILDING0 + b["id"]] = (not b["locked"]) and b["price"] <= bank
+            m[A_BUILDING0 + b["id"]] = b["price"] <= bank
         for k in range(min(N_UPGRADE_SLOTS, len(o["upgrades"]))):
             m[A_UPGRADE0 + k] = o["upgrades"][k]["price"] <= bank
         m[A_ASCEND] = (o["prestigePotential"] - o["prestige"]) >= 1.0 and not o["onAscend"]
