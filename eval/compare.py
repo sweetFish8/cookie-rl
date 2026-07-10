@@ -40,22 +40,22 @@ def run_episode(env: CookieClickerEnv, policy, seed: int) -> dict:
     }
 
 
-def make_policies(model_path: str | None) -> dict:
+def make_policies(models: dict[str, str]) -> dict:
     rng = np.random.default_rng(0)
     policies = {
         "random": lambda obs, raw, mask: random_policy(raw, mask, rng),
         "greedy": lambda obs, raw, mask: greedy_policy(raw, mask),
     }
-    if model_path:
-        from sb3_contrib import MaskablePPO
+    from sb3_contrib import MaskablePPO
 
-        model = MaskablePPO.load(model_path, device="cpu")
+    for name, path in models.items():
+        model = MaskablePPO.load(path, device="cpu")
 
-        def ppo_policy(obs, raw, mask):
-            action, _ = model.predict(obs, action_masks=mask, deterministic=True)
+        def ppo_policy(obs, raw, mask, _m=model):
+            action, _ = _m.predict(obs, action_masks=mask, deterministic=True)
             return int(action)
 
-        policies["ppo"] = ppo_policy
+        policies[name] = ppo_policy
     return policies
 
 
@@ -64,13 +64,15 @@ def main() -> None:
     ap.add_argument("--horizon-days", type=float, default=0.5)
     ap.add_argument("--step-seconds", type=float, default=30.0)
     ap.add_argument("--seeds", type=int, default=3)
-    ap.add_argument("--model", type=str, default=None)
+    ap.add_argument("--seed-base", type=int, default=2000, help="held-out eval seeds (train used 0-3, BC 5000+)")
+    ap.add_argument("--models", type=str, default="", help="comma list name=path.zip")
     ap.add_argument("--out", type=str, default="results")
     args = ap.parse_args()
 
     out_dir = Path(args.out)
     out_dir.mkdir(exist_ok=True)
-    policies = make_policies(args.model)
+    models = dict(kv.split("=", 1) for kv in args.models.split(",") if kv.strip())
+    policies = make_policies(models)
 
     results: dict[str, list[dict]] = {name: [] for name in policies}
     env = CookieClickerEnv(horizon_days=args.horizon_days, step_seconds=args.step_seconds)
@@ -78,11 +80,11 @@ def main() -> None:
         for name, policy in policies.items():
             for s in range(args.seeds):
                 t0 = time.perf_counter()
-                r = run_episode(env, policy, seed=1000 + s)
+                r = run_episode(env, policy, seed=args.seed_base + s)
                 dt = time.perf_counter() - t0
                 results[name].append(r)
                 print(
-                    f"{name:8s} seed={1000 + s}: baked=1e{r['log10_baked']:.2f} "
+                    f"{name:10s} seed={args.seed_base + s}: baked=1e{r['log10_baked']:.2f} "
                     f"ascensions={r['ascensions']} ({dt:.0f}s wall)"
                 )
     finally:
