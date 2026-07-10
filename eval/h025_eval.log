@@ -1,4 +1,0 @@
-   100000 log10_baked=7.34 cps=506 asc=0 | [('noop', 710), ('bld3', 5), ('upg2', 4), ('upg3', 1)]
-   200000 log10_baked=5.62 cps=0 asc=0 | [('noop', 719), ('upg0', 1)]
-   300000 log10_baked=8.71 cps=2.55e+04 asc=0 | [('noop', 670), ('bld4', 44), ('upg3', 6)]
-   400000 log10_baked=6.44 cps=47 asc=0 | [('noop', 719), ('bld3', 1)]

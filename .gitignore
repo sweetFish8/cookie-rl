@@ -8,3 +8,6 @@ runs/
 checkpoints/
 results/
 .DS_Store
+
+# transient experiment eval logs
+eval/*.log
