@@ -45,6 +45,8 @@ def main() -> None:
     ap.add_argument("--load", type=str, default=None, help="checkpoint .zip to resume from")
     ap.add_argument("--ent-coef", type=float, default=0.02, help="entropy bonus (lower => sharper argmax)")
     ap.add_argument("--lr", type=float, default=3e-4)
+    ap.add_argument("--no-adv-norm", action="store_true",
+                    help="disable advantage normalization (avoids drift when fine-tuning a near-optimal policy)")
     ap.add_argument("--run-name", type=str, default="ppo")
     ap.add_argument("--device", type=str, default="cpu")
     args = ap.parse_args()
@@ -64,7 +66,8 @@ def main() -> None:
         model = MaskablePPO.load(args.load, env=vec, device=args.device, tensorboard_log="runs")
         model.ent_coef = args.ent_coef  # allow sharpening the argmax when fine-tuning
         model.learning_rate = args.lr
-        print(f"resumed from {args.load} (ent_coef={args.ent_coef}, lr={args.lr})")
+        model.normalize_advantage = not args.no_adv_norm
+        print(f"resumed from {args.load} (ent_coef={args.ent_coef}, lr={args.lr}, adv_norm={not args.no_adv_norm})")
     else:
         model = MaskablePPO(
             "MlpPolicy",
@@ -75,6 +78,7 @@ def main() -> None:
             gae_lambda=0.98,
             ent_coef=args.ent_coef,
             learning_rate=args.lr,
+            normalize_advantage=not args.no_adv_norm,
             policy_kwargs=dict(net_arch=[256, 256]),
             tensorboard_log="runs",
             seed=args.seed,

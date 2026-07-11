@@ -51,11 +51,21 @@
 	// otherwise discover "toggle autoclick" before any reward exists), which was
 	// collapsing the policy to always-noop.
 	const state = {
-		clicksPerSec: 10, // big-cookie autoclick rate during step()
-		autoPop: true,    // pop golden (non-wrath) shimmers during step()
-		popWrath: false,  // also pop wrath cookies
+		clicksPerSec: 10,       // big-cookie autoclick rate during step()
+		autoPop: true,          // pop golden (non-wrath) shimmers during step()
+		popWrath: false,        // also pop wrath cookies
+		burstClicksPerFrame: 30, // clicks/frame while a Click-frenzy/Dragonflight buff is up
 		initDone: false,
 	};
+
+	// true while a click-power buff (Click frenzy ×777, Dragonflight) is active —
+	// each ClickCookie() is then worth `multClick`× more, so bursting the big cookie
+	// during these ~13s windows is the single biggest active golden-cookie play.
+	function clickBuffActive() {
+		const buffs = G().buffs;
+		for (const k in buffs) if ((buffs[k].multClick || 1) > 1) return true;
+		return false;
+	}
 
 	function popShimmers() {
 		const Game = G();
@@ -104,7 +114,11 @@
 			const clickEvery = state.clicksPerSec > 0 ? Math.max(1, Math.round(fps / state.clicksPerSec)) : 0;
 			for (let i = 0; i < n; i++) {
 				if (state.autoPop && Game.shimmers.length) popShimmers();
-				if (clickEvery && (Game.T % clickEvery === 0)) Game.ClickCookie();
+				if (state.burstClicksPerFrame > 0 && clickBuffActive()) {
+					for (let c = 0; c < state.burstClicksPerFrame; c++) Game.ClickCookie();
+				} else if (clickEvery && (Game.T % clickEvery === 0)) {
+					Game.ClickCookie();
+				}
 				frame();
 			}
 			return window.__cc.observe();
@@ -123,6 +137,7 @@
 			state.clicksPerSec = 10;
 			state.autoPop = true;
 			state.popWrath = false;
+			state.burstClicksPerFrame = 30;
 			Game.Notify = function () {};
 			frame(); // settle one frame so CpS/store are recalculated
 			return window.__cc.observe();

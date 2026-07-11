@@ -104,7 +104,7 @@ class CookieBrowser:
         return self.page.evaluate("__cc.observe()")
 
     def set_state(self, clicks_per_sec: float | None = None, auto_pop: bool | None = None,
-                  pop_wrath: bool | None = None) -> None:
+                  pop_wrath: bool | None = None, burst_clicks_per_frame: int | None = None) -> None:
         s: dict[str, Any] = {}
         if clicks_per_sec is not None:
             s["clicksPerSec"] = clicks_per_sec
@@ -112,6 +112,8 @@ class CookieBrowser:
             s["autoPop"] = auto_pop
         if pop_wrath is not None:
             s["popWrath"] = pop_wrath
+        if burst_clicks_per_frame is not None:
+            s["burstClicksPerFrame"] = burst_clicks_per_frame
         if s:
             self.page.evaluate("(s) => __cc.setState(s)", s)
 
