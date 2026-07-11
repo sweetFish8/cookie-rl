@@ -54,7 +54,7 @@
 		clicksPerSec: 10,       // big-cookie autoclick rate during step()
 		autoPop: true,          // pop golden (non-wrath) shimmers during step()
 		popWrath: false,        // also pop wrath cookies
-		burstClicksPerFrame: 30, // clicks/frame while a Click-frenzy/Dragonflight buff is up
+		burstClicksPerFrame: 1,  // clicks/frame during a Click-frenzy/Dragonflight buff (1/frame=30/s, the sim tick rate; higher = super-clicking, negligible extra gain)
 		initDone: false,
 	};
 
@@ -137,7 +137,7 @@
 			state.clicksPerSec = 10;
 			state.autoPop = true;
 			state.popWrath = false;
-			state.burstClicksPerFrame = 30;
+			state.burstClicksPerFrame = 1;
 			Game.Notify = function () {};
 			frame(); // settle one frame so CpS/store are recalculated
 			return window.__cc.observe();
