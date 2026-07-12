@@ -35,15 +35,22 @@ UPGRADE_BLACKLIST = {
 
 
 def greedy_policy(raw_obs: dict, mask: np.ndarray, ascend_gain_factor: float = 1.0,
-                  ascend_min_chips: float = 200.0) -> int:
+                  ascend_min_chips: float = 200.0, ascend_min_remaining_days: float = 7.0) -> int:
     o = raw_obs
 
     # autoclick + golden-cookie popping are automatic (harness); nothing to toggle
     if mask[A_LUMP]:
         return A_LUMP
 
+    # Ascension is an optimal-stopping trap at short horizons: it resets all cookies,
+    # and the +1%/chip prestige multiplier needs a long rebuild to pay off. Measured:
+    # at <=3 game-days, never-ascend beats ascend by 2-3.5 log10. So only ascend when
+    # enough game-time remains to recoup (default 7 days). raw_obs may lack the field
+    # (older callers) -> treat as "plenty remaining" and fall back to the gain rule.
+    remaining_days = o.get("secondsRemaining", float("inf")) / 86_400.0
     gain = o["prestigePotential"] - o["prestige"]
-    if mask[A_ASCEND] and gain >= max(ascend_min_chips, ascend_gain_factor * o["prestige"]):
+    if (mask[A_ASCEND] and remaining_days >= ascend_min_remaining_days
+            and gain >= max(ascend_min_chips, ascend_gain_factor * o["prestige"])):
         return A_ASCEND
 
     bank = o["cookies"]

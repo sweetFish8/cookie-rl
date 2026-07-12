@@ -196,15 +196,24 @@ class CookieClickerEnv(gym.Env):
         assert self._browser is not None
         self.raw_obs = self._browser.reset_game(ep_seed)
         self._steps = 0
+        self._annotate(self.raw_obs)
         self._last_log_baked = float(np.log10(1.0 + self.raw_obs["totalBaked"]))
         self._last_phi = float(np.log10(1.0 + self.raw_obs["cookiesPs"]))
         return self._vectorize(self.raw_obs), {}
+
+    def _annotate(self, o: dict) -> None:
+        """Inject episode-progress fields so reactive policies can be horizon-aware
+        (e.g. greedy must not ascend when too little time remains to recoup the reset)."""
+        remaining = max(0, self.horizon_steps - self._steps)
+        o["fracRemaining"] = remaining / max(1, self.horizon_steps)
+        o["secondsRemaining"] = remaining * (self.step_frames / GAME_FPS)
 
     def step(self, action: int):
         assert self._browser is not None
         self._apply_action(int(action))
         self.raw_obs = self._browser.step(self.step_frames)
         self._steps += 1
+        self._annotate(self.raw_obs)
 
         log_baked = float(np.log10(1.0 + self.raw_obs["totalBaked"]))
         base_reward = log_baked - self._last_log_baked
